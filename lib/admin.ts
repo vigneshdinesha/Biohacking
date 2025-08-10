@@ -1,127 +1,243 @@
-"use client"
+const API_BASE = 'http://localhost:5189/api';
 
-export interface Motivation {
-  id: string
-  title: string
-  description: string
-  category: "energy" | "focus" | "sleep" | "stress" | "performance" | "wellness"
-  mappedBiohacks: string[] // Array of biohack titles
-  createdAt: string
-  updatedAt: string
+export async function getUsers(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/Users`);
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
 }
 
-export interface AdminBiohack {
-  id: string
-  title: string
-  technique: string
-  category: "lifestyle" | "feel-good"
-  difficulty: "beginner" | "intermediate" | "advanced"
-  timeRequired: string
-  icon: string
-  color: string
-  action: string[]
-  science: {
-    mechanism: string
-    studies: string
-    biology: string
-  }
-  createdAt: string
-  updatedAt: string
+export async function getUser(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch user');
+  return res.json();
 }
 
-export class AdminManager {
-  // Motivations Management
-  static getMotivations(): Motivation[] {
-    return JSON.parse(localStorage.getItem("admin_motivations") || "[]")
-  }
+export async function createUser(data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create user');
+  return res.json();
+}
 
-  static saveMotivation(motivation: Motivation) {
-    const motivations = this.getMotivations()
-    const existingIndex = motivations.findIndex((m) => m.id === motivation.id)
+export async function updateUser(id: number, data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update user');
+  return res.json();
+}
 
-    if (existingIndex >= 0) {
-      motivations[existingIndex] = { ...motivation, updatedAt: new Date().toISOString() }
-    } else {
-      motivations.push({ ...motivation, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
-    }
+export async function deleteUser(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete user');
+  return res.json();
+}
 
-    localStorage.setItem("admin_motivations", JSON.stringify(motivations))
-  }
+export async function linkUserMotivation(id: number, motivationId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/${id}/link-motivation/${motivationId}`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to link motivation');
+  return res.json();
+}
 
-  static deleteMotivation(id: string) {
-    const motivations = this.getMotivations().filter((m) => m.id !== id)
-    localStorage.setItem("admin_motivations", JSON.stringify(motivations))
-  }
+export async function unlinkUserMotivation(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/${id}/unlink-motivation`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to unlink motivation');
+  return res.json();
+}
 
-  // Biohacks Management
-  static getAdminBiohacks(): AdminBiohack[] {
-    return JSON.parse(localStorage.getItem("admin_biohacks") || "[]")
-  }
+export async function linkUserMotivationBody(userId: number, motivationId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/link-motivation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, motivationId }),
+  });
+  if (!res.ok) throw new Error('Failed to link motivation');
+  return res.json();
+}
 
-  static saveAdminBiohack(biohack: AdminBiohack) {
-    const biohacks = this.getAdminBiohacks()
-    const existingIndex = biohacks.findIndex((b) => b.id === biohack.id)
+export async function unlinkUserMotivationBody(userId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Users/unlink-motivation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  });
+  if (!res.ok) throw new Error('Failed to unlink motivation');
+  return res.json();
+}
 
-    if (existingIndex >= 0) {
-      biohacks[existingIndex] = { ...biohack, updatedAt: new Date().toISOString() }
-    } else {
-      biohacks.push({ ...biohack, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
-    }
+// Motivation Endpoints
+export async function getMotivations(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/Motivations`);
+  if (!res.ok) throw new Error('Failed to fetch motivations');
+  return res.json();
+}
 
-    localStorage.setItem("admin_biohacks", JSON.stringify(biohacks))
-  }
+export async function getMotivation(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Motivations/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch motivation');
+  return res.json();
+}
 
-  static deleteAdminBiohack(id: string) {
-    const biohacks = this.getAdminBiohacks().filter((b) => b.id !== id)
-    localStorage.setItem("admin_biohacks", JSON.stringify(biohacks))
-  }
+export async function createMotivation(data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Motivations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create motivation');
+  return res.json();
+}
 
-  // Initialize with sample data
-  static initializeSampleData() {
-    const existingMotivations = this.getMotivations()
-    const existingBiohacks = this.getAdminBiohacks()
+export async function updateMotivation(id: number, data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Motivations/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update motivation');
+  return res.json();
+}
 
-    if (existingMotivations.length === 0) {
-      const sampleMotivations: Motivation[] = [
-        {
-          id: "mot_1",
-          title: "Increase Daily Energy",
-          description: "Feel more energized throughout the day without relying on caffeine",
-          category: "energy",
-          mappedBiohacks: ["Feel more alert for 2 hours", "Increase energy levels"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "mot_2",
-          title: "Improve Focus & Concentration",
-          description: "Enhance mental clarity and sustained attention for work and study",
-          category: "focus",
-          mappedBiohacks: ["Boost focus naturally", "Improve mental clarity"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "mot_3",
-          title: "Better Sleep Quality",
-          description: "Fall asleep faster and wake up more refreshed",
-          category: "sleep",
-          mappedBiohacks: ["Optimize sleep cycles"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "mot_4",
-          title: "Reduce Stress & Anxiety",
-          description: "Manage stress naturally and feel more calm and centered",
-          category: "stress",
-          mappedBiohacks: ["Reduce stress naturally", "Come back to present moment", "Mindful meditation"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]
+export async function deleteMotivation(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Motivations/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete motivation');
+  return res.json();
+}
 
-      localStorage.setItem("admin_motivations", JSON.stringify(sampleMotivations))
-    }
-  }
+export async function getMotivationBiohacks(id: number): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/Motivations/${id}/biohacks`);
+  if (!res.ok) throw new Error('Failed to fetch motivation biohacks');
+  return res.json();
+}
+
+// Biohack Endpoints
+export async function getBiohacks(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/Biohacks`);
+  if (!res.ok) throw new Error('Failed to fetch biohacks');
+  return res.json();
+}
+
+export async function getBiohack(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Biohacks/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch biohack');
+  return res.json();
+}
+
+export async function createBiohack(data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Biohacks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create biohack');
+  return res.json();
+}
+
+export async function updateBiohack(id: number, data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Biohacks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update biohack');
+  return res.json();
+}
+
+export async function deleteBiohack(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Biohacks/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete biohack');
+  return res.json();
+}
+
+// Journal Endpoints
+export async function getJournals(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/Journals`);
+  if (!res.ok) throw new Error('Failed to fetch journals');
+  return res.json();
+}
+
+export async function getJournal(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Journals/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch journal');
+  return res.json();
+}
+
+export async function createJournal(data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Journals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create journal');
+  return res.json();
+}
+
+export async function updateJournal(id: number, data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/Journals/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update journal');
+  return res.json();
+}
+
+export async function deleteJournal(id: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/Journals/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete journal');
+  return res.json();
+}
+
+// MotivationBiohacks Endpoints
+export async function getMotivationBiohacksAll(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/MotivationBiohacks`);
+  if (!res.ok) throw new Error('Failed to fetch motivation-biohacks');
+  return res.json();
+}
+
+export async function getMotivationBiohack(motivationId: number, biohackId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/MotivationBiohacks/${motivationId}/${biohackId}`);
+  if (!res.ok) throw new Error('Failed to fetch motivation-biohack relationship');
+  return res.json();
+}
+
+export async function createMotivationBiohack(data: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/MotivationBiohacks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create motivation-biohack relationship');
+  return res.json();
+}
+
+export async function linkMotivationBiohack(motivationId: number, biohackId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/MotivationBiohacks/link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivationId, biohackId }),
+  });
+  if (!res.ok) throw new Error('Failed to link motivation-biohack');
+  return res.json();
+}
+
+export async function unlinkMotivationBiohack(motivationId: number, biohackId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/MotivationBiohacks/unlink`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivationId, biohackId }),
+  });
+  if (!res.ok) throw new Error('Failed to unlink motivation-biohack');
+  return res.json();
+}
+
+export async function deleteMotivationBiohack(motivationId: number, biohackId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/MotivationBiohacks/${motivationId}/${biohackId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete motivation-biohack relationship');
+  return res.json();
 }

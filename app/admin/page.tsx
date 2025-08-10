@@ -2,74 +2,105 @@
 
 import { useState, useEffect } from "react"
 import { Plus, Edit, Trash2, Users, Zap, Search, Filter } from "lucide-react"
-import { AdminManager, type Motivation, type AdminBiohack } from "@/lib/admin"
+import { getMotivations, getBiohacks, deleteMotivation, deleteBiohack, createMotivation, updateMotivation, createBiohack, updateBiohack } from "@/lib/admin"
 import MotivationForm from "@/components/admin/motivation-form"
 import BiohackForm from "@/components/admin/biohack-form"
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<"motivations" | "biohacks">("motivations")
-  const [motivations, setMotivations] = useState<Motivation[]>([])
-  const [biohacks, setBiohacks] = useState<AdminBiohack[]>([])
+  const [motivations, setMotivations] = useState<any[]>([])
+  const [biohacks, setBiohacks] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState<string>("all")
 
   // Modal states
   const [showMotivationForm, setShowMotivationForm] = useState(false)
   const [showBiohackForm, setShowBiohackForm] = useState(false)
-  const [editingMotivation, setEditingMotivation] = useState<Motivation | null>(null)
-  const [editingBiohack, setEditingBiohack] = useState<AdminBiohack | null>(null)
+  const [editingMotivation, setEditingMotivation] = useState<any | null>(null)
+  const [editingBiohack, setEditingBiohack] = useState<any | null>(null)
+
 
   useEffect(() => {
-    AdminManager.initializeSampleData()
     loadData()
   }, [])
 
-  const loadData = () => {
-    setMotivations(AdminManager.getMotivations())
-    setBiohacks(AdminManager.getAdminBiohacks())
+  const loadData = async () => {
+    const motivationsRaw = await getMotivations()
+    const biohacksRaw = await getBiohacks()
+    console.log('Raw motivations from API:', motivationsRaw)
+    console.log('Raw biohacks from API:', biohacksRaw)
+
+    // Map API fields to expected frontend fields
+    const motivations = motivationsRaw.map((m: any) => ({
+      id: m.id,
+      title: m.name ?? '',
+      description: m.infoSections ?? '',
+      category: 'general', // fallback, since not present
+      mappedBiohacks: [], // fallback, since not present
+    }))
+    const biohacks = biohacksRaw.map((b: any) => ({
+      id: b.id,
+      title: b.name ?? '',
+      technique: b.infoSections ?? '',
+      category: 'general', // fallback, since not present
+      difficulty: 'medium', // fallback, since not present
+      timeRequired: '', // fallback, since not present
+    }))
+    setMotivations(motivations)
+    setBiohacks(biohacks)
   }
 
-  const handleSaveMotivation = (motivation: Motivation) => {
-    AdminManager.saveMotivation(motivation)
-    loadData()
+  const handleSaveMotivation = async (motivation: any) => {
+    if (motivation.id) {
+      await updateMotivation(motivation.id, motivation)
+    } else {
+      await createMotivation(motivation)
+    }
+    await loadData()
     setEditingMotivation(null)
   }
 
-  const handleSaveBiohack = (biohack: AdminBiohack) => {
-    AdminManager.saveAdminBiohack(biohack)
-    loadData()
+  const handleSaveBiohack = async (biohack: any) => {
+    if (biohack.id) {
+      await updateBiohack(biohack.id, biohack)
+    } else {
+      await createBiohack(biohack)
+    }
+    await loadData()
     setEditingBiohack(null)
   }
 
-  const handleDeleteMotivation = (id: string) => {
+  const handleDeleteMotivation = async (id: number) => {
     if (confirm("Are you sure you want to delete this motivation?")) {
-      AdminManager.deleteMotivation(id)
-      loadData()
+      await deleteMotivation(id)
+      await loadData()
     }
   }
 
-  const handleDeleteBiohack = (id: string) => {
+  const handleDeleteBiohack = async (id: number) => {
     if (confirm("Are you sure you want to delete this biohack?")) {
-      AdminManager.deleteAdminBiohack(id)
-      loadData()
+      await deleteBiohack(id)
+      await loadData()
     }
   }
 
   const filteredMotivations = motivations.filter((motivation) => {
+    if (!motivation || typeof motivation.title !== 'string' || typeof motivation.description !== 'string') return false;
     const matchesSearch =
       motivation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      motivation.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = filterCategory === "all" || motivation.category === filterCategory
-    return matchesSearch && matchesCategory
-  })
+      motivation.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "all" || motivation.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const filteredBiohacks = biohacks.filter((biohack) => {
+    if (!biohack || typeof biohack.title !== 'string' || typeof biohack.technique !== 'string') return false;
     const matchesSearch =
       biohack.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      biohack.technique.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = filterCategory === "all" || biohack.category === filterCategory
-    return matchesSearch && matchesCategory
-  })
+      biohack.technique.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "all" || biohack.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -290,10 +321,10 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <p className="text-white/50 text-xs mb-2">Action Steps: {biohack.action.length}</p>
+                  <p className="text-white/50 text-xs mb-2">Action Steps: {(biohack.action ? biohack.action.length : 0)}</p>
                   <div className="text-xs text-white/70">
-                    {biohack.action[0]?.substring(0, 60)}
-                    {biohack.action[0]?.length > 60 && "..."}
+                    {biohack.action && biohack.action[0] ? biohack.action[0].substring(0, 60) : ''}
+                    {biohack.action && biohack.action[0] && biohack.action[0].length > 60 ? "..." : ''}
                   </div>
                 </div>
               </div>
