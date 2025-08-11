@@ -94,19 +94,58 @@ export async function createMotivation(data: any): Promise<any> {
 }
 
 export async function updateMotivation(id: number, data: any): Promise<any> {
+  console.log('🌐 API UPDATE MOTIVATION - Starting API call for ID:', id);
+  console.log('🌐 API UPDATE MOTIVATION - URL:', `${API_BASE}/Motivations/${id}`);
+  console.log('🌐 API UPDATE MOTIVATION - Data:', data);
+  
   const res = await fetch(`${API_BASE}/Motivations/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update motivation');
-  return res.json();
+  
+  console.log('🌐 API UPDATE MOTIVATION - Response status:', res.status, res.statusText);
+  
+  if (!res.ok) {
+    console.error('❌ API UPDATE MOTIVATION - Request failed with status:', res.status);
+    const errorText = await res.text();
+    console.error('❌ API UPDATE MOTIVATION - Error response body:', errorText);
+    throw new Error(`Failed to update motivation: ${res.status} ${res.statusText} - ${errorText}`);
+  }
+  
+  const result = await res.json();
+  console.log('✅ API UPDATE MOTIVATION - Success! Response:', result);
+  return result;
 }
 
 export async function deleteMotivation(id: number): Promise<any> {
+  console.log('🌐 API DELETE MOTIVATION - Starting API call for ID:', id);
+  console.log('🌐 API DELETE MOTIVATION - URL:', `${API_BASE}/Motivations/${id}`);
+  
   const res = await fetch(`${API_BASE}/Motivations/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete motivation');
-  return res.json();
+  
+  console.log('🌐 API DELETE MOTIVATION - Response status:', res.status, res.statusText);
+  console.log('🌐 API DELETE MOTIVATION - Response headers:', Object.fromEntries(res.headers.entries()));
+  
+  if (!res.ok) {
+    console.error('❌ API DELETE MOTIVATION - Request failed with status:', res.status);
+    const errorText = await res.text();
+    console.error('❌ API DELETE MOTIVATION - Error response body:', errorText);
+    throw new Error(`Failed to delete motivation: ${res.status} ${res.statusText} - ${errorText}`);
+  }
+  
+  // Check if response has content before trying to parse JSON
+  const contentLength = res.headers.get('content-length');
+  const contentType = res.headers.get('content-type');
+  
+  if (contentLength === '0' || res.status === 204 || !contentType?.includes('application/json')) {
+    console.log('✅ API DELETE MOTIVATION - Success! No content response (as expected)');
+    return {}; // Return empty object for successful delete with no content
+  }
+  
+  const result = await res.json();
+  console.log('✅ API DELETE MOTIVATION - Success! Response:', result);
+  return result;
 }
 
 export async function getMotivationBiohacks(id: number): Promise<any[]> {

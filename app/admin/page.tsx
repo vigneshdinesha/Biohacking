@@ -49,13 +49,20 @@ export default function AdminPage() {
   }
 
   const handleSaveMotivation = async (motivation: any) => {
-    if (motivation.id) {
-      await updateMotivation(motivation.id, motivation)
+    console.log('💾 SAVE MOTIVATION - Received data:', motivation);
+    console.log('💾 SAVE MOTIVATION - Current editing motivation:', editingMotivation);
+    
+    // If we're editing (editingMotivation exists), include the ID
+    if (editingMotivation && editingMotivation.id) {
+      const motivationWithId = { ...motivation, id: editingMotivation.id };
+      console.log('✏️ SAVE MOTIVATION - Updating existing motivation with ID:', editingMotivation.id);
+      await updateMotivation(editingMotivation.id, motivationWithId);
     } else {
-      await createMotivation(motivation)
+      console.log('➕ SAVE MOTIVATION - Creating new motivation');
+      await createMotivation(motivation);
     }
-    await loadData()
-    setEditingMotivation(null)
+    await loadData();
+    setEditingMotivation(null);
   }
 
   const handleSaveBiohack = async (biohack: any) => {
@@ -69,9 +76,24 @@ export default function AdminPage() {
   }
 
   const handleDeleteMotivation = async (id: number) => {
+    console.log('🗑️ DELETE MOTIVATION - Starting delete process for ID:', id);
+    console.log('🗑️ DELETE MOTIVATION - Motivation object:', motivations.find(m => m.id === id));
+    
     if (confirm("Are you sure you want to delete this motivation?")) {
-      await deleteMotivation(id)
-      await loadData()
+      try {
+        console.log('🗑️ DELETE MOTIVATION - User confirmed, calling deleteMotivation API...');
+        const result = await deleteMotivation(id);
+        console.log('🗑️ DELETE MOTIVATION - API call successful, result:', result);
+        
+        console.log('🗑️ DELETE MOTIVATION - Reloading data...');
+        await loadData();
+        console.log('🗑️ DELETE MOTIVATION - Data reloaded successfully');
+      } catch (error) {
+        console.error('❌ DELETE MOTIVATION - Error occurred:', error);
+        alert('Failed to delete motivation: ' + (error as Error).message);
+      }
+    } else {
+      console.log('🗑️ DELETE MOTIVATION - User cancelled deletion');
     }
   }
 
@@ -236,7 +258,10 @@ export default function AdminPage() {
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteMotivation(motivation.id)}
+                      onClick={() => {
+                        console.log('🖱️ DELETE BUTTON CLICKED - Motivation ID:', motivation.id, 'Title:', motivation.title);
+                        handleDeleteMotivation(motivation.id);
+                      }}
                       className="bg-red-500/20 hover:bg-red-500/30 text-red-300 p-2 rounded transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
