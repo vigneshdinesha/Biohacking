@@ -33,10 +33,8 @@ export default function AdminPage() {
     // Map API fields to expected frontend fields
     const motivations = motivationsRaw.map((m: any) => ({
       id: m.id,
-      title: m.name ?? '',
-      description: m.infoSections ?? '',
-      category: 'general', // fallback, since not present
-      mappedBiohacks: [], // fallback, since not present
+      title: m.title ?? '',
+      description: m.description ?? '',
     }))
     const biohacks = biohacksRaw.map((b: any) => ({
       id: b.id,
@@ -89,8 +87,7 @@ export default function AdminPage() {
     const matchesSearch =
       motivation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       motivation.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === "all" || motivation.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const filteredBiohacks = biohacks.filter((biohack) => {
@@ -183,31 +180,20 @@ export default function AdminPage() {
               />
             </div>
 
-            <div className="relative">
-              <Filter className="w-5 h-5 text-white/50 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="bg-white/10 border border-white/20 rounded-lg pl-10 pr-8 py-2 text-white appearance-none"
-              >
-                <option value="all">All Categories</option>
-                {activeTab === "motivations" ? (
-                  <>
-                    <option value="energy">Energy</option>
-                    <option value="focus">Focus</option>
-                    <option value="sleep">Sleep</option>
-                    <option value="stress">Stress</option>
-                    <option value="performance">Performance</option>
-                    <option value="wellness">Wellness</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="lifestyle">Lifestyle</option>
-                    <option value="feel-good">Feel Good</option>
-                  </>
-                )}
-              </select>
-            </div>
+            {activeTab === "biohacks" && (
+              <div className="relative">
+                <Filter className="w-5 h-5 text-white/50 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="bg-white/10 border border-white/20 rounded-lg pl-10 pr-8 py-2 text-white appearance-none"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="lifestyle">Lifestyle</option>
+                  <option value="feel-good">Feel Good</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Add Button */}
@@ -238,12 +224,6 @@ export default function AdminPage() {
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-white mb-2">{motivation.title}</h3>
                     <p className="text-white/70 text-sm mb-3">{motivation.description}</p>
-                    <div className="flex items-center space-x-2 mb-3">
-                      <span className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-xs font-medium">
-                        {motivation.category}
-                      </span>
-                      <span className="text-white/50 text-xs">{motivation.mappedBiohacks.length} biohacks</span>
-                    </div>
                   </div>
                   <div className="flex space-x-2">
                     <button
@@ -263,22 +243,6 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-
-                {motivation.mappedBiohacks.length > 0 && (
-                  <div>
-                    <p className="text-white/50 text-xs mb-2">Mapped Biohacks:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {motivation.mappedBiohacks.slice(0, 3).map((biohack, index) => (
-                        <span key={index} className="bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs">
-                          {biohack.length > 20 ? biohack.substring(0, 20) + "..." : biohack}
-                        </span>
-                      ))}
-                      {motivation.mappedBiohacks.length > 3 && (
-                        <span className="text-white/50 text-xs">+{motivation.mappedBiohacks.length - 3} more</span>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -338,8 +302,8 @@ export default function AdminPage() {
             <Users className="w-16 h-16 text-white/30 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No motivations found</h3>
             <p className="text-white/70 mb-4">
-              {searchTerm || filterCategory !== "all"
-                ? "Try adjusting your search or filter criteria"
+              {searchTerm
+                ? "Try adjusting your search criteria"
                 : "Create your first motivation to get started"}
             </p>
           </div>

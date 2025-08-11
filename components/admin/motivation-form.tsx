@@ -1,69 +1,70 @@
-"use client"
 
-import type React from "react"
+"use client";
 
-import { useState, useEffect } from "react"
-import { X, Save, Plus } from "lucide-react"
-import type { Motivation } from "@/lib/admin"
-import { biohackData } from "@/data/biohacks"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { X, Save, Plus } from "lucide-react";
 
 interface MotivationFormProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (motivation: Motivation) => void
-  motivation?: Motivation | null
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (motivation: any) => void;
+  motivation?: any | null;
 }
 
 export default function MotivationForm({ isOpen, onClose, onSave, motivation }: MotivationFormProps) {
-  const [formData, setFormData] = useState<Partial<Motivation>>({
+  const [formData, setFormData] = useState({
     title: "",
     description: "",
-    category: "energy",
-    mappedBiohacks: [],
-  })
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (motivation) {
-      setFormData(motivation)
+      setFormData({
+        title: motivation.title || "",
+        description: motivation.description || "",
+      });
     } else {
       setFormData({
         title: "",
         description: "",
-        category: "energy",
-        mappedBiohacks: [],
-      })
+      });
     }
-  }, [motivation])
+  }, [motivation]);
 
-  if (!isOpen) return null
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = "Title is required";
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    
+    if (!validateForm()) return;
 
-    const motivationData: Motivation = {
-      id: motivation?.id || `mot_${Date.now()}`,
-      title: formData.title || "",
-      description: formData.description || "",
-      category: formData.category || "energy",
-      mappedBiohacks: formData.mappedBiohacks || [],
-      createdAt: motivation?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    // Send exactly what the API expects: title, description
+    const motivationData = {
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+    };
 
-    onSave(motivationData)
-    onClose()
-  }
+    onSave(motivationData);
+    onClose();
+  };
 
-  const availableBiohacks = Object.keys(biohackData)
-
-  const toggleBiohack = (biohackTitle: string) => {
-    const current = formData.mappedBiohacks || []
-    const updated = current.includes(biohackTitle)
-      ? current.filter((b) => b !== biohackTitle)
-      : [...current, biohackTitle]
-
-    setFormData({ ...formData, mappedBiohacks: updated })
-  }
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -86,66 +87,29 @@ export default function MotivationForm({ isOpen, onClose, onSave, motivation }: 
           <div className="space-y-4">
             {/* Title */}
             <div>
-              <label className="block text-white font-medium mb-2">Title</label>
+              <label className="block text-white font-medium mb-2">Title *</label>
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50"
-                placeholder="e.g., Increase Daily Energy"
+                placeholder="Enter motivation title..."
                 required
               />
+              {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-white font-medium mb-2">Description</label>
+              <label className="block text-white font-medium mb-2">Description *</label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 resize-none h-20"
-                placeholder="Describe what this motivation helps users achieve..."
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/50 resize-none h-24"
+                placeholder="Enter motivation description..."
                 required
               />
-            </div>
-
-            {/* Category */}
-            <div>
-              <label className="block text-white font-medium mb-2">Category</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white"
-              >
-                <option value="energy">Energy</option>
-                <option value="focus">Focus</option>
-                <option value="sleep">Sleep</option>
-                <option value="stress">Stress</option>
-                <option value="performance">Performance</option>
-                <option value="wellness">Wellness</option>
-              </select>
-            </div>
-
-            {/* Mapped Biohacks */}
-            <div>
-              <label className="block text-white font-medium mb-2">
-                Mapped Biohacks ({formData.mappedBiohacks?.length || 0} selected)
-              </label>
-              <div className="bg-white/5 rounded-lg p-4 max-h-48 overflow-y-auto">
-                <div className="grid grid-cols-1 gap-2">
-                  {availableBiohacks.map((biohackTitle) => (
-                    <label key={biohackTitle} className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.mappedBiohacks?.includes(biohackTitle) || false}
-                        onChange={() => toggleBiohack(biohackTitle)}
-                        className="rounded border-white/20 bg-white/10 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-                      />
-                      <span className="text-white/90 text-sm">{biohackTitle}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              {errors.description && <p className="text-red-400 text-sm mt-1">{errors.description}</p>}
             </div>
           </div>
 
@@ -168,5 +132,5 @@ export default function MotivationForm({ isOpen, onClose, onSave, motivation }: 
         </form>
       </div>
     </div>
-  )
+  );
 }
