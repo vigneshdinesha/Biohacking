@@ -55,15 +55,16 @@ export default function Bubble({ position, color, size, content, onBubbleClick }
   return (
     <group
       ref={(group) => {
+        // Bridge cannon ref and local mesh ref
         // @ts-ignore
         ref.current = group
+        // @ts-ignore
         meshRef.current = group
       }}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
       onClick={() => onBubbleClick(content)}
       scale={hovered ? 1.05 : 1}
-      style={{ cursor: "pointer" }}
     >
       {/* Main bubble */}
       <mesh>

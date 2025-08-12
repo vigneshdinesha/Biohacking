@@ -122,7 +122,7 @@ function TextSegment({ segment, index, scrollVelocity }: { segment: any; index: 
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-20%" })
 
-  const sizeClasses = {
+  const sizeClasses: Record<string, string> = {
     small: "text-lg md:text-xl",
     medium: "text-2xl md:text-3xl",
     large: "text-4xl md:text-5xl lg:text-6xl",

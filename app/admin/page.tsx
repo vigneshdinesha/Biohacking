@@ -1,15 +1,26 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Edit, Trash2, Users, Zap, Search, Filter } from "lucide-react"
-import { getMotivations, getBiohacks, deleteMotivation, deleteBiohack, createMotivation, updateMotivation, createBiohack, updateBiohack } from "@/lib/admin"
+import { Plus, Edit, Trash2, Users, Zap, Search, Filter, Link2, Unlink } from "lucide-react"
+import { getMotivations, getBiohacks, deleteMotivation, deleteBiohack, createMotivation, updateMotivation, createBiohack, updateBiohack, getMotivationBiohacksAll, linkMotivationBiohack, unlinkMotivationBiohack } from "@/lib/admin"
 import MotivationForm from "@/components/admin/motivation-form"
 import BiohackForm from "@/components/admin/biohack-form"
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"motivations" | "biohacks">("motivations")
+  // Biohack category options (must match API category field values)
+  const BIOHACK_CATEGORIES = [
+    'Wellness & Balance',
+    'Performance & Productivity',
+    'Fitness & Physical Vitality',
+    'Transformation & Self-Discovery',
+    'Social Growth & Connection',
+  ]
+  const [activeTab, setActiveTab] = useState<"motivations" | "biohacks" | "mappings">("motivations")
   const [motivations, setMotivations] = useState<any[]>([])
   const [biohacks, setBiohacks] = useState<any[]>([])
+  const [motivationBiohacks, setMotivationBiohacks] = useState<any[]>([])
+  const [selectedMotivationId, setSelectedMotivationId] = useState<number | null>(null)
+  const [mappingBusy, setMappingBusy] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState<string>("all")
 
@@ -25,10 +36,14 @@ export default function AdminPage() {
   }, [])
 
   const loadData = async () => {
-    const motivationsRaw = await getMotivations()
-    const biohacksRaw = await getBiohacks()
+    const [motivationsRaw, biohacksRaw, mappingsRaw] = await Promise.all([
+      getMotivations(),
+      getBiohacks(),
+      getMotivationBiohacksAll().catch(() => []),
+    ])
     console.log('Raw motivations from API:', motivationsRaw)
     console.log('Raw biohacks from API:', biohacksRaw)
+    console.log('Raw mappings from API:', mappingsRaw)
 
     // Map API fields to expected frontend fields
     const motivations = motivationsRaw.map((m: any) => ({
@@ -38,14 +53,21 @@ export default function AdminPage() {
     }))
     const biohacks = biohacksRaw.map((b: any) => ({
       id: b.id,
-      title: b.name ?? '',
-      technique: b.infoSections ?? '',
-      category: 'general', // fallback, since not present
-      difficulty: 'medium', // fallback, since not present
-      timeRequired: '', // fallback, since not present
+      title: b.title ?? '',
+      technique: b.technique ?? '',
+      category: b.category ?? '',
+      difficulty: b.difficulty ?? '',
+      timeRequired: b.timeRequired ?? '',
+      action: b.action ?? [],
+      mechanism: b.mechanism ?? '',
+      researchStudies: b.researchStudies ?? '',
+      biology: b.biology ?? '',
+      colorGradient: b.colorGradient ?? '',
     }))
     setMotivations(motivations)
     setBiohacks(biohacks)
+  setMotivationBiohacks(mappingsRaw || [])
+  if (motivations.length && selectedMotivationId === null) setSelectedMotivationId(motivations[0].id)
   }
 
   const handleSaveMotivation = async (motivation: any) => {
@@ -66,8 +88,9 @@ export default function AdminPage() {
   }
 
   const handleSaveBiohack = async (biohack: any) => {
-    if (biohack.id) {
-      await updateBiohack(biohack.id, biohack)
+    // Mirror motivation handling: when editing, use the selected biohack's ID
+    if (editingBiohack && editingBiohack.id) {
+      await updateBiohack(editingBiohack.id, biohack)
     } else {
       await createBiohack(biohack)
     }
@@ -120,6 +143,40 @@ export default function AdminPage() {
     const matchesCategory = filterCategory === "all" || biohack.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Mapping helpers
+  const isLinked = (motivationId: number, biohackId: number) =>
+    motivationBiohacks.some(mb => mb.motivationId === motivationId && mb.biohackId === biohackId)
+
+  const toggleLink = async (biohackId: number) => {
+    if (selectedMotivationId == null) return
+    setMappingBusy(true)
+    try {
+      if (isLinked(selectedMotivationId, biohackId)) {
+        await unlinkMotivationBiohack(selectedMotivationId, biohackId)
+        setMotivationBiohacks(prev => prev.filter(mb => !(mb.motivationId === selectedMotivationId && mb.biohackId === biohackId)))
+      } else {
+        try {
+          await linkMotivationBiohack(selectedMotivationId, biohackId)
+          setMotivationBiohacks(prev => [...prev, { motivationId: selectedMotivationId, biohackId }])
+        } catch (e: any) {
+          // Handle conflict (relationship exists) gracefully
+          if (String(e.message).includes('409') || String(e.message).toLowerCase().includes('exists')) {
+            // Force refresh mappings
+            const fresh = await getMotivationBiohacksAll().catch(() => [])
+            setMotivationBiohacks(fresh)
+          } else {
+            throw e
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Mapping toggle failed', err)
+      alert('Link/unlink failed: ' + (err as Error).message)
+    } finally {
+      setMappingBusy(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -185,10 +242,20 @@ export default function AdminPage() {
             <Zap className="w-4 h-4" />
             <span>Biohacks ({biohacks.length})</span>
           </button>
+          <button
+            onClick={() => setActiveTab("mappings")}
+            className={`px-6 py-2 rounded-full font-medium transition-all duration-300 text-sm flex items-center space-x-2 ${
+              activeTab === "mappings" ? "bg-white text-slate-900 shadow-lg" : "text-white hover:bg-white/10"
+            }`}
+          >
+            <Link2 className="w-4 h-4" />
+            <span>Mappings</span>
+          </button>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+  {activeTab !== 'mappings' && (
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           {/* Search and Filter */}
           <div className="flex items-center space-x-4">
             <div className="relative">
@@ -211,8 +278,9 @@ export default function AdminPage() {
                   className="bg-white/10 border border-white/20 rounded-lg pl-10 pr-8 py-2 text-white appearance-none"
                 >
                   <option value="all">All Categories</option>
-                  <option value="lifestyle">Lifestyle</option>
-                  <option value="feel-good">Feel Good</option>
+                  {BIOHACK_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -234,10 +302,11 @@ export default function AdminPage() {
             <Plus className="w-4 h-4" />
             <span>Add {activeTab === "motivations" ? "Motivation" : "Biohack"}</span>
           </button>
-        </div>
+  </div>
+  )}
 
         {/* Content */}
-        {activeTab === "motivations" ? (
+  {activeTab === "motivations" ? (
           /* Motivations Grid */
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMotivations.map((motivation) => (
@@ -271,7 +340,7 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        ) : (
+  ) : activeTab === 'biohacks' ? (
           /* Biohacks Grid */
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredBiohacks.map((biohack) => (
@@ -318,6 +387,86 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          // Mappings tab
+          <div className="space-y-8">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2"><Link2 className="w-4 h-4" /><span>Link Motivations to Biohacks</span></h3>
+              <div className="grid md:grid-cols-3 gap-6">
+                {/* Motivation Selector */}
+                <div className="md:col-span-1 space-y-4">
+                  <label className="block text-white text-sm font-medium">Select Motivation</label>
+                  <select
+                    value={selectedMotivationId ?? ''}
+                    onChange={e => setSelectedMotivationId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white"
+                  >
+                    {motivations.map(m => (
+                      <option key={m.id} value={m.id}>{m.title}</option>
+                    ))}
+                  </select>
+                  {selectedMotivationId != null && (
+                    <div className="text-xs text-white/60">
+                      Linked Biohacks: {motivationBiohacks.filter(mb => mb.motivationId === selectedMotivationId).length}
+                    </div>
+                  )}
+                </div>
+                {/* Biohack list */}
+                <div className="md:col-span-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {biohacks.map(b => {
+                    const linked = selectedMotivationId != null && isLinked(selectedMotivationId, b.id)
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => !mappingBusy && toggleLink(b.id)}
+                        disabled={selectedMotivationId == null || mappingBusy}
+                        className={`text-left p-4 rounded-lg border transition-colors relative group ${linked ? 'border-green-400/60 bg-green-500/10' : 'border-white/20 bg-white/5 hover:border-white/40'} disabled:opacity-50`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="font-medium text-white pr-2 line-clamp-2">{b.title || 'Untitled'}</span>
+                          {linked ? <Link2 className="w-4 h-4 text-green-400" /> : <Unlink className="w-4 h-4 text-white/40 group-hover:text-white/70" />}
+                        </div>
+                        <p className="text-xs text-white/60 line-clamp-3 mb-2">{b.technique}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {b.category && <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-200">{b.category}</span>}
+                          {b.difficulty && <span className="text-[10px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-200">{b.difficulty}</span>}
+                        </div>
+                        {linked && <span className="absolute top-2 right-2 text-[10px] bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded">Linked</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Current mappings overview */}
+            {selectedMotivationId != null && (
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <h4 className="text-white font-semibold mb-3 text-sm">Current Links</h4>
+                <div className="flex flex-wrap gap-2">
+                  {motivationBiohacks.filter(mb => mb.motivationId === selectedMotivationId).map(mb => {
+                    const b = biohacks.find(bh => bh.id === mb.biohackId)
+                    if (!b) return null
+                    return (
+                      <span key={mb.biohackId} className="inline-flex items-center space-x-1 bg-white/10 px-2 py-1 rounded text-xs text-white">
+                        <span>{b.title}</span>
+                        <button
+                          onClick={() => toggleLink(b.id)}
+                          className="text-red-300 hover:text-red-400"
+                          title="Unlink"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
+                  {motivationBiohacks.filter(mb => mb.motivationId === selectedMotivationId).length === 0 && (
+                    <span className="text-white/50 text-xs">No biohacks linked yet.</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

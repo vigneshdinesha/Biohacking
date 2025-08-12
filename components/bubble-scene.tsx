@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { usePlane } from "@react-three/cannon"
+import * as THREE from 'three'
 import Bubble from "./bubble"
 
 interface BubbleSceneProps {
@@ -11,27 +12,27 @@ interface BubbleSceneProps {
 
 export default function BubbleScene({ activeTab, onBubbleClick }: BubbleSceneProps) {
   // Create invisible walls for bouncing
-  const [bottomWall] = usePlane(() => ({
+  const [bottomWall] = usePlane<THREE.Mesh>(() => ({
     position: [0, -5, 0],
     rotation: [-Math.PI / 2, 0, 0],
   }))
-  const [topWall] = usePlane(() => ({
+  const [topWall] = usePlane<THREE.Mesh>(() => ({
     position: [0, 5, 0],
     rotation: [Math.PI / 2, 0, 0],
   }))
-  const [leftWall] = usePlane(() => ({
+  const [leftWall] = usePlane<THREE.Mesh>(() => ({
     position: [-8, 0, 0],
     rotation: [0, Math.PI / 2, 0],
   }))
-  const [rightWall] = usePlane(() => ({
+  const [rightWall] = usePlane<THREE.Mesh>(() => ({
     position: [8, 0, 0],
     rotation: [0, -Math.PI / 2, 0],
   }))
-  const [backWall] = usePlane(() => ({
+  const [backWall] = usePlane<THREE.Mesh>(() => ({
     position: [0, 0, -5],
     rotation: [0, 0, 0],
   }))
-  const [frontWall] = usePlane(() => ({
+  const [frontWall] = usePlane<THREE.Mesh>(() => ({
     position: [0, 0, 5],
     rotation: [0, Math.PI, 0],
   }))

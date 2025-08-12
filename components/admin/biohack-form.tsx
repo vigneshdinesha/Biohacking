@@ -72,6 +72,37 @@ const QUICK_TEMPLATES = {
 }
 
 export default function BiohackForm({ isOpen, onClose, onSave, biohack }: BiohackFormProps) {
+  // Helper: parse researchStudies from API (string or JSON) into UI-friendly array
+  const parseResearchStudies = (input: any): { summary: string; sourceURL: string }[] => {
+    try {
+      if (!input) return [{ summary: "", sourceURL: "" }]
+      if (Array.isArray(input)) {
+        // Already array (from client state)
+        if (input.length === 0) return [{ summary: "", sourceURL: "" }]
+        if (typeof input[0] === 'string') {
+          return (input as string[]).map(s => ({ summary: s, sourceURL: "" }))
+        }
+        return input as { summary: string; sourceURL: string }[]
+      }
+      if (typeof input === 'string') {
+        const trimmed = input.trim()
+        if (!trimmed) return [{ summary: "", sourceURL: "" }]
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) {
+            if (parsed.length === 0) return [{ summary: "", sourceURL: "" }]
+            if (typeof parsed[0] === 'string') return parsed.map((s: string) => ({ summary: s, sourceURL: "" }))
+            return parsed as { summary: string; sourceURL: string }[]
+          }
+        } catch {
+          // Not JSON, treat as single summary string
+          return [{ summary: trimmed, sourceURL: "" }]
+        }
+      }
+    } catch {}
+    return [{ summary: "", sourceURL: "" }]
+  }
+
   const [formData, setFormData] = useState({
     title: "",
     technique: "",
@@ -96,9 +127,9 @@ export default function BiohackForm({ isOpen, onClose, onSave, biohack }: Biohac
         category: biohack.category || "",
         difficulty: biohack.difficulty || "",
         timeRequired: biohack.timeRequired || "",
-        action: biohack.action || [""],
+  action: biohack.action || [""],
         mechanism: biohack.mechanism || "",
-        researchStudies: biohack.researchStudies || [{ summary: "", sourceURL: "" }],
+  researchStudies: parseResearchStudies(biohack.researchStudies),
         biology: biohack.biology || "",
         colorGradient: biohack.colorGradient || "",
       })
@@ -196,6 +227,9 @@ export default function BiohackForm({ isOpen, onClose, onSave, biohack }: Biohac
     
     if (!validateForm()) return
 
+    const validStudies = formData.researchStudies.filter(study => 
+      study.summary.trim() && study.sourceURL.trim()
+    )
     const normalizedData = {
       title: formData.title.trim(),
       technique: formData.technique.trim(),
@@ -204,9 +238,8 @@ export default function BiohackForm({ isOpen, onClose, onSave, biohack }: Biohac
       timeRequired: formData.timeRequired,
       action: formData.action.filter(step => step.trim()),
       mechanism: formData.mechanism.trim(),
-      researchStudies: formData.researchStudies.filter(study => 
-        study.summary.trim() && study.sourceURL.trim()
-      ),
+      // API expects a string; store JSON string of studies for compatibility
+      researchStudies: JSON.stringify(validStudies),
       biology: formData.biology.trim() || undefined,
       colorGradient: formData.colorGradient.trim() || undefined,
     }

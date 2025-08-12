@@ -174,7 +174,9 @@ export async function createBiohack(data: any): Promise<any> {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to create biohack');
-  return res.json();
+  const type = res.headers.get('content-type') || ''
+  if (type.includes('application/json')) return res.json()
+  return {};
 }
 
 export async function updateBiohack(id: number, data: any): Promise<any> {
@@ -184,12 +186,19 @@ export async function updateBiohack(id: number, data: any): Promise<any> {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to update biohack');
-  return res.json();
+  const type = res.headers.get('content-type') || ''
+  if (type.includes('application/json')) return res.json()
+  return {};
 }
 
 export async function deleteBiohack(id: number): Promise<any> {
   const res = await fetch(`${API_BASE}/Biohacks/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete biohack');
+  const contentLength = res.headers.get('content-length');
+  const contentType = res.headers.get('content-type');
+  if (contentLength === '0' || res.status === 204 || !contentType?.includes('application/json')) {
+    return {};
+  }
   return res.json();
 }
 
@@ -262,7 +271,9 @@ export async function linkMotivationBiohack(motivationId: number, biohackId: num
     body: JSON.stringify({ motivationId, biohackId }),
   });
   if (!res.ok) throw new Error('Failed to link motivation-biohack');
-  return res.json();
+  const type = res.headers.get('content-type') || ''
+  if (res.status === 204 || !type.includes('application/json')) return {}
+  try { return await res.json() } catch { return {} }
 }
 
 export async function unlinkMotivationBiohack(motivationId: number, biohackId: number): Promise<any> {
@@ -272,7 +283,9 @@ export async function unlinkMotivationBiohack(motivationId: number, biohackId: n
     body: JSON.stringify({ motivationId, biohackId }),
   });
   if (!res.ok) throw new Error('Failed to unlink motivation-biohack');
-  return res.json();
+  const type = res.headers.get('content-type') || ''
+  if (res.status === 204 || !type.includes('application/json')) return {}
+  try { return await res.json() } catch { return {} }
 }
 
 export async function deleteMotivationBiohack(motivationId: number, biohackId: number): Promise<any> {
