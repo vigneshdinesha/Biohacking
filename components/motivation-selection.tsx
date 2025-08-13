@@ -1,61 +1,30 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { motion, useInView, useScroll, useTransform } from "framer-motion"
 import { Zap, Heart, Sparkles, Users, HelpCircle, ArrowRight } from "lucide-react"
+import { getMotivations } from "@/lib/admin"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface MotivationSelectionProps {
   onSelect: (motivation: string) => void
 }
 
-const motivations = [
-  {
-    id: "performance",
-    title: "Performance and Productivity",
-    description: "Optimize focus, energy, and cognitive performance for peak productivity",
-    icon: Zap,
-    color: "from-blue-400 to-cyan-500",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "fitness",
-    title: "Fitness and Physical Vitality",
-    description: "Enhance strength, endurance, recovery, and overall physical wellness",
-    icon: Heart,
-    color: "from-red-400 to-pink-500",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "transformation",
-    title: "Transformation and Self-discovery",
-    description: "Unlock your potential through mindfulness, habits, and personal growth",
-    icon: Sparkles,
-    color: "from-purple-400 to-indigo-500",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "social",
-    title: "Social Growth and Connection",
-    description: "Improve relationships, communication, and social confidence",
-    icon: Users,
-    color: "from-green-400 to-teal-500",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "exploring",
-    title: "I'm unsure/Just exploring",
-    description: "Discover what biohacking can offer through guided exploration",
-    icon: HelpCircle,
-    color: "from-yellow-400 to-orange-500",
-    image: "/placeholder.svg?height=200&width=300",
-  },
+// Visual defaults for cards (cycled across fetched motivations)
+const DEFAULT_ICONS = [Zap, Heart, Sparkles, Users, HelpCircle]
+const DEFAULT_GRADIENTS = [
+  "from-blue-400 to-cyan-500",
+  "from-red-400 to-pink-500",
+  "from-purple-400 to-indigo-500",
+  "from-green-400 to-teal-500",
+  "from-yellow-400 to-orange-500",
 ]
 
 function MotivationCard({
   motivation,
   index,
   onSelect,
-}: { motivation: any; index: number; onSelect: (id: string) => void }) {
+}: { motivation: any; index: number; onSelect: (value: string) => void }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-10%" })
   const [isHovered, setIsHovered] = useState(false)
@@ -87,7 +56,7 @@ function MotivationCard({
         whileTap={{ scale: 0.98 }}
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
-        onClick={() => onSelect(motivation.id)}
+  onClick={() => onSelect(motivation.title)}
       >
         {/* Background Image */}
         <motion.div
@@ -224,6 +193,43 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
     onSelect(motivation)
   }
 
+  // Fetch motivations from API
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [items, setItems] = useState<Array<{ id: number; title: string; description: string }>>([])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const raw = await getMotivations()
+        const mapped = (raw || []).map((m: any) => ({
+          id: m.id,
+          title: m.title ?? '',
+          description: m.description ?? '',
+        }))
+        if (alive) setItems(mapped)
+      } catch (e: any) {
+        if (alive) setError(e?.message || 'Failed to load motivations')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Decorate with visuals
+  const decorated = useMemo(() => {
+    return items.map((m, i) => ({
+      ...m,
+      icon: DEFAULT_ICONS[i % DEFAULT_ICONS.length],
+      color: DEFAULT_GRADIENTS[i % DEFAULT_GRADIENTS.length],
+      image: "/placeholder.svg?height=200&width=300",
+    }))
+  }, [items])
+
   return (
     <div
       ref={containerRef}
@@ -315,7 +321,30 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
         {/* Motivation Cards */}
         <div className="max-w-4xl mx-auto px-8">
           <div className="space-y-20">
-            {motivations.map((motivation, index) => (
+            {loading && (
+              <div className="grid gap-8 md:grid-cols-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="w-full max-w-md mx-auto">
+                    <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl overflow-hidden">
+                      <Skeleton className="absolute inset-0 rounded-3xl opacity-20" />
+                      <div className="relative z-10">
+                        <Skeleton className="h-20 w-20 mx-auto mb-6 rounded-2xl" />
+                        <Skeleton className="h-6 w-3/4 mx-auto mb-4" />
+                        <Skeleton className="h-4 w-11/12 mx-auto mb-2" />
+                        <Skeleton className="h-4 w-2/3 mx-auto" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {error && !loading && (
+              <div className="text-center text-red-300 py-10">{error}</div>
+            )}
+            {!loading && !error && decorated.length === 0 && (
+              <div className="text-center text-white/70 py-10">No motivations found.</div>
+            )}
+            {!loading && !error && decorated.map((motivation, index) => (
               <MotivationCard key={motivation.id} motivation={motivation} index={index} onSelect={handleSelect} />
             ))}
           </div>
