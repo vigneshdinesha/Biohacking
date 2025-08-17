@@ -1,7 +1,7 @@
 "use client"
 
 import type React from 'react'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 // Public user shape (extend here when backend adds real auth fields)
 export interface User {
@@ -9,6 +9,7 @@ export interface User {
 	email: string
 	name: string
 	picture: string
+	motivationId?: number | null
 	preferences?: {
 		selectedBiohacks: string[]
 		goals: string[]
@@ -21,6 +22,7 @@ interface AuthContextType {
 	login: () => Promise<void>
 	logout: () => void
 	loading: boolean
+	setMotivationId: (id: number | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,46 +33,83 @@ export function useAuth() {
 	return ctx
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-	const [user, setUser] = useState<User | null>(null)
-	const [loading, setLoading] = useState(true)
+function InnerAuthProvider({ children }: { children: React.ReactNode }) {
+	const [sessionUser, setSessionUser] = useState<{ id: string; email: string; name: string; image?: string } | null>(null)
+	const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
+	const [motivationId, setMotivationId] = useState<number | null>(null)
 
-	// On mount, hydrate from localStorage (simple mock persistence)
+	// hydrate motivation from localStorage
 	useEffect(() => {
-		try {
-			const saved = typeof window !== 'undefined' ? localStorage.getItem('biohack_user') : null
-			if (saved) setUser(JSON.parse(saved))
-		} catch (e) {
-			console.warn('Failed to parse saved user', e)
-		} finally {
-			setLoading(false)
-		}
+		if (typeof window === 'undefined') return
+		const v = localStorage.getItem('biohack_motivation_id')
+		if (v) setMotivationId(Number(v))
 	}, [])
 
-	const login = async () => {
-		// Mock login (replace with real OAuth / backend later)
-		const mockUser: User = {
-			id: 'user_' + Math.random().toString(36).slice(2, 11),
-			email: 'user@example.com',
-			name: 'John Doe',
-			picture: '/placeholder.svg?height=40&width=40'
+	// fetch session user from cookie via API
+	useEffect(() => {
+		let alive = true
+		;(async () => {
+			try {
+				setStatus('loading')
+				const res = await fetch('/api/session', { cache: 'no-store' })
+				const data = await res.json()
+				if (!alive) return
+				if (data?.user) {
+					setSessionUser({ id: data.user.id, email: data.user.email, name: data.user.name, image: data.user.picture })
+					setStatus('authenticated')
+				} else {
+					setSessionUser(null)
+					setStatus('unauthenticated')
+				}
+			} catch {
+				if (!alive) return
+				setSessionUser(null)
+				setStatus('unauthenticated')
+			}
+		})()
+		return () => { alive = false }
+	}, [])
+
+	const user: User | null = useMemo(() => {
+		if (!sessionUser) return null
+		return {
+			id: sessionUser.id,
+			email: sessionUser.email || '',
+			name: sessionUser.name || '',
+			picture: sessionUser.image || '/placeholder.svg?height=40&width=40',
+			motivationId,
 		}
-		setUser(mockUser)
-		if (typeof window !== 'undefined') localStorage.setItem('biohack_user', JSON.stringify(mockUser))
+	}, [sessionUser, motivationId])
+
+	const login = async () => {
+		window.location.assign('/api/oauth/google/start')
 	}
 
 	const logout = () => {
-		setUser(null)
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('biohack_user')
+	if (typeof window !== 'undefined') {
+			localStorage.removeItem('biohack_motivation_id')
 			localStorage.removeItem('biohack_progress')
 			localStorage.removeItem('biohack_preferences')
-		}
+	}
+		fetch('/api/logout', { method: 'POST' }).finally(() => {
+			window.location.assign('/')
+		})
 	}
 
+	// persist motivation id
+	useEffect(() => {
+		if (typeof window === 'undefined') return
+		if (motivationId == null) return
+		localStorage.setItem('biohack_motivation_id', String(motivationId))
+	}, [motivationId])
+
 	return (
-		<AuthContext.Provider value={{ user, login, logout, loading }}>
+		<AuthContext.Provider value={{ user, login, logout, loading: status === 'loading', setMotivationId }}>
 			{children}
 		</AuthContext.Provider>
 	)
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+	return <InnerAuthProvider>{children}</InnerAuthProvider>
 }

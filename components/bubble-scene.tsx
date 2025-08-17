@@ -1,16 +1,18 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { usePlane } from "@react-three/cannon"
 import * as THREE from 'three'
 import Bubble from "./bubble"
+import { getMotivationBiohacks } from "@/lib/admin"
 
 interface BubbleSceneProps {
   activeTab: "lifestyle" | "feel-good"
-  onBubbleClick: (content: string) => void
+  motivationId: number | null
+  onBubbleClick: (biohack: { id: number; title: string }) => void
 }
 
-export default function BubbleScene({ activeTab, onBubbleClick }: BubbleSceneProps) {
+export default function BubbleScene({ activeTab, motivationId, onBubbleClick }: BubbleSceneProps) {
   // Create invisible walls for bouncing
   const [bottomWall] = usePlane<THREE.Mesh>(() => ({
     position: [0, -5, 0],
@@ -37,32 +39,52 @@ export default function BubbleScene({ activeTab, onBubbleClick }: BubbleScenePro
     rotation: [0, Math.PI, 0],
   }))
 
-  // Reduced number of bubbles from 12 to 8
-  const bubbleConfigs = useMemo(() => {
-    if (activeTab === "lifestyle") {
-      return [
-        { id: 1, color: "#10b981", position: [-3, 2, 0], size: 1.5, content: "Feel more alert for 2 hours" },
-        { id: 2, color: "#06b6d4", position: [3, -1, 1], size: 1.8, content: "Boost focus naturally" },
-        { id: 3, color: "#8b5cf6", position: [-2, -2, -1], size: 1.6, content: "Optimize sleep cycles" },
-        { id: 4, color: "#f59e0b", position: [2, 2, -2], size: 1.4, content: "Increase energy levels" },
-        { id: 5, color: "#ef4444", position: [-1, 0, 2], size: 1.7, content: "Enhance metabolism" },
-        { id: 6, color: "#14b8a6", position: [4, 0, 0], size: 1.3, content: "Cold exposure therapy" },
-        { id: 7, color: "#f97316", position: [-4, -1, 1], size: 1.6, content: "Intermittent fasting" },
-        { id: 8, color: "#84cc16", position: [1, -3, -1], size: 1.5, content: "Morning sunlight" },
-      ]
-    } else {
-      return [
-        { id: 1, color: "#22c55e", position: [-2, 2, 0], size: 1.6, content: "Come back to present moment" },
-        { id: 2, color: "#3b82f6", position: [3, -1, 1], size: 1.5, content: "Break free from laziness" },
-        { id: 3, color: "#a855f7", position: [-3, -2, -1], size: 1.8, content: "Reduce stress naturally" },
-        { id: 4, color: "#f97316", position: [1, 2, -2], size: 1.4, content: "Improve mental clarity" },
-        { id: 5, color: "#ec4899", position: [0, -1, 2], size: 1.7, content: "Balance hormones" },
-        { id: 6, color: "#10b981", position: [4, 1, 0], size: 1.3, content: "Mindful meditation" },
-        { id: 7, color: "#f59e0b", position: [-4, 0, 1], size: 1.5, content: "Digital detox" },
-        { id: 8, color: "#06b6d4", position: [2, -3, -1], size: 1.6, content: "Forest bathing" },
-      ]
-    }
-  }, [activeTab])
+  // Fetch biohacks for the selected motivation
+  const [biohacks, setBiohacks] = useState<any[]>([])
+  const [loadedMotivationId, setLoadedMotivationId] = useState<number | null>(null)
+  const loadingRef = useRef(false)
+
+  useEffect(() => {
+    if (!motivationId || loadingRef.current) return
+    loadingRef.current = true
+    ;(async () => {
+      try {
+        const data = await getMotivationBiohacks(motivationId)
+        setBiohacks(Array.isArray(data) ? data : [])
+        setLoadedMotivationId(motivationId)
+      } catch (e) {
+        setBiohacks([])
+      } finally {
+        loadingRef.current = false
+      }
+    })()
+  }, [motivationId])
+
+  // Map biohacks to bubble configs
+  const palette = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6", "#f97316", "#84cc16"]
+  const positions: [number, number, number][] = useMemo(() => {
+    // Predefined aesthetically placed positions within walls
+    return [
+      [-3, 2, 0], [3, -1, 1], [-2, -2, -1], [2, 2, -2], [-1, 0, 2], [4, 0, 0], [-4, -1, 1], [1, -3, -1],
+      [-3.5, 1.5, 0.5], [2.5, -2, -0.5], [-1.5, -1.2, 1.2], [1.8, 2.5, 0.8]
+    ]
+  }, [])
+
+  const byTab = useMemo(() => {
+    const short = biohacks.filter(b => String(b.timeRequired || '').toLowerCase().includes('short'))
+    const long = biohacks.filter(b => String(b.timeRequired || '').toLowerCase().includes('long'))
+    const pick = (arr: any[]) => arr.slice(0, 12).map((b, i) => ({
+  id: b.id ?? i,
+      color: palette[i % palette.length],
+      position: positions[i % positions.length],
+      size: 1.3 + Math.min(Math.max((Array.isArray(b.action) ? b.action.length : 3), 3), 10) * 0.06,
+      // Use title as the bubble label
+      content: b.title || b.technique || 'Biohack'
+    }))
+    return { feelGood: pick(short), lifestyle: pick(long) }
+  }, [biohacks, palette, positions])
+
+  const bubbleConfigs = activeTab === 'lifestyle' ? byTab.lifestyle : byTab.feelGood
 
   return (
     <>
@@ -74,10 +96,11 @@ export default function BubbleScene({ activeTab, onBubbleClick }: BubbleScenePro
       <mesh ref={backWall} visible={false} />
       <mesh ref={frontWall} visible={false} />
 
-      {/* Bubbles */}
-      {bubbleConfigs.map((config) => (
+  {/* Bubbles */}
+  {bubbleConfigs.map((config) => (
         <Bubble
           key={`${activeTab}-${config.id}`}
+          id={config.id}
           position={config.position as [number, number, number]}
           color={config.color}
           size={config.size}

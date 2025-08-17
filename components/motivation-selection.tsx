@@ -7,7 +7,7 @@ import { getMotivations } from "@/lib/admin"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface MotivationSelectionProps {
-  onSelect: (motivation: string) => void
+  onSelect: (motivation: { id: number; title: string }) => void
 }
 
 // Visual defaults for cards (cycled across fetched motivations)
@@ -24,7 +24,7 @@ function MotivationCard({
   motivation,
   index,
   onSelect,
-}: { motivation: any; index: number; onSelect: (value: string) => void }) {
+}: { motivation: any; index: number; onSelect: (value: { id: number; title: string }) => void }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-10%" })
   const [isHovered, setIsHovered] = useState(false)
@@ -56,7 +56,7 @@ function MotivationCard({
         whileTap={{ scale: 0.98 }}
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
-  onClick={() => onSelect(motivation.title)}
+  onClick={() => onSelect({ id: motivation.id, title: motivation.title })}
       >
         {/* Background Image */}
         <motion.div
@@ -189,7 +189,7 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
   const { scrollYProgress } = useScroll({ target: containerRef })
   const backgroundY = useTransform(scrollYProgress, [0, 1], [0, -200])
 
-  const handleSelect = (motivation: string) => {
+  const handleSelect = (motivation: { id: number; title: string }) => {
     onSelect(motivation)
   }
 

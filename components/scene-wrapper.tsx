@@ -5,7 +5,7 @@ import { Physics } from "@react-three/cannon"
 import { Environment, OrbitControls } from "@react-three/drei"
 import BubbleScene from "./bubble-scene"
 
-export default function SceneWrapper({ activeTab, onBubbleClick }: { activeTab: "lifestyle" | "feel-good"; onBubbleClick: (content: string) => void }) {
+export default function SceneWrapper({ activeTab, motivationId, onBubbleClick }: { activeTab: "lifestyle" | "feel-good"; motivationId: number | null; onBubbleClick: (biohack: { id: number; title: string }) => void }) {
   return (
     <Canvas camera={{ position: [0, 0, 10], fov: 75 }} gl={{ alpha: true, antialias: true }}>
       <Environment preset="sunset" />
@@ -14,7 +14,7 @@ export default function SceneWrapper({ activeTab, onBubbleClick }: { activeTab: 
       <directionalLight position={[-10, -10, -5]} intensity={0.8} />
       <pointLight position={[5, 5, 5]} intensity={1} color="#ffffff" />
       <pointLight position={[-5, -5, 5]} intensity={0.5} color="#87ceeb" />
-      <Physics
+  <Physics
         gravity={[0, 0, 0]}
         iterations={20}
         defaultContactMaterial={{
@@ -24,7 +24,7 @@ export default function SceneWrapper({ activeTab, onBubbleClick }: { activeTab: 
           contactEquationRelaxation: 4,
         }}
       >
-        <BubbleScene activeTab={activeTab} onBubbleClick={onBubbleClick} />
+  <BubbleScene activeTab={activeTab} motivationId={motivationId} onBubbleClick={onBubbleClick} />
       </Physics>
       <OrbitControls enablePan={false} enableZoom={false} enableRotate={false} />
     </Canvas>

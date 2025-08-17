@@ -7,14 +7,15 @@ import { Html } from "@react-three/drei"
 import * as THREE from "three"
 
 interface BubbleProps {
+  id: number
   position: [number, number, number]
   color: string
   size: number
   content: string
-  onBubbleClick: (content: string) => void
+  onBubbleClick: (biohack: { id: number; title: string }) => void
 }
 
-export default function Bubble({ position, color, size, content, onBubbleClick }: BubbleProps) {
+export default function Bubble({ id, position, color, size, content, onBubbleClick }: BubbleProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [hovered, setHovered] = useState(false)
 
@@ -63,7 +64,7 @@ export default function Bubble({ position, color, size, content, onBubbleClick }
       }}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
-      onClick={() => onBubbleClick(content)}
+  onClick={() => onBubbleClick({ id, title: content })}
       scale={hovered ? 1.05 : 1}
     >
       {/* Main bubble */}

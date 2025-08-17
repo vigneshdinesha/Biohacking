@@ -1,40 +1,73 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { User, Settings } from "lucide-react"
 import BiohackModal from "@/components/biohack-modal"
+import AuthModal from "@/components/auth-modal"
 import IntroSequence from "@/components/intro-sequence"
 import MotivationSelection from "@/components/motivation-selection"
 import { AuthProvider, useAuth } from "@/lib/auth"
+import { getMotivation } from "@/lib/admin"
 
 const SceneWrapper = dynamic(() => import("@/components/scene-wrapper"), { ssr: false })
 
 function HomeContent() {
   const [currentView, setCurrentView] = useState<"intro" | "motivation" | "main">("intro")
   const [activeTab, setActiveTab] = useState<"lifestyle" | "feel-good">("lifestyle")
-  const [selectedBiohack, setSelectedBiohack] = useState<string | null>(null)
-  const [selectedMotivation, setSelectedMotivation] = useState<string | null>(null)
-  const { user, logout } = useAuth()
+  const [selectedBiohack, setSelectedBiohack] = useState<{ id: number; title: string } | null>(null)
+  const [selectedMotivation, setSelectedMotivation] = useState<{ id: number; title: string } | null>(null)
+  const { user, logout, loading, setMotivationId } = useAuth()
+  const [authPrompt, setAuthPrompt] = useState(false)
+
+  // Gate: prompt auth before intro when user is not signed in
+  useEffect(() => {
+    if (loading) return
+    if (!user) {
+      setAuthPrompt(true)
+    } else {
+      setAuthPrompt(false)
+      // If signed in and a motivation is already linked, skip intro and selection
+      if (user.motivationId) {
+        ;(async () => {
+          try {
+            const m = await getMotivation(user.motivationId!)
+            setSelectedMotivation({ id: user.motivationId!, title: m?.title ?? '' })
+          } catch {
+            setSelectedMotivation({ id: user.motivationId!, title: '' })
+          } finally {
+            setCurrentView("main")
+          }
+        })()
+      }
+    }
+  }, [user, loading])
 
   const handleIntroComplete = () => {
     setCurrentView("motivation")
   }
 
-  const handleMotivationSelect = (motivation: string) => {
+  const handleMotivationSelect = (motivation: { id: number; title: string }) => {
     setSelectedMotivation(motivation)
+  // persist in auth/local state
+  setMotivationId(motivation.id)
     setCurrentView("main")
   }
 
-  const handleBubbleClick = (content: string) => {
-    setSelectedBiohack(content)
+  const handleBubbleClick = (biohack: { id: number; title: string }) => {
+    setSelectedBiohack(biohack)
   }
 
   const handleCloseModal = () => {
     setSelectedBiohack(null)
   }
 
-  // Show intro sequence first
+  // Show auth modal if not signed in (non-closable until sign-in)
+  if (authPrompt) {
+    return <AuthModal isOpen closable={false} onClose={() => {}} />
+  }
+
+  // Show intro sequence first when signed in and no existing motivation
   if (currentView === "intro") {
     return <IntroSequence onComplete={handleIntroComplete} />
   }
@@ -87,10 +120,10 @@ function HomeContent() {
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Biohacking</h1>
 
         {/* Show selected motivation */}
-        {selectedMotivation && (
+    {selectedMotivation && (
           <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 mb-4 border border-white/20 max-w-xs">
             <p className="text-white/80 text-sm">Your focus:</p>
-            <p className="text-cyan-400 font-medium text-sm">{selectedMotivation}</p>
+      <p className="text-cyan-400 font-medium text-sm">{selectedMotivation.title}</p>
           </div>
         )}
 
@@ -148,11 +181,11 @@ function HomeContent() {
 
       {/* 3D Scene */}
       <div className="fixed inset-0 z-0">
-        <SceneWrapper activeTab={activeTab} onBubbleClick={handleBubbleClick} />
+  <SceneWrapper activeTab={activeTab} motivationId={selectedMotivation?.id ?? null} onBubbleClick={handleBubbleClick} />
       </div>
 
       {/* Biohack Modal */}
-      <BiohackModal isOpen={!!selectedBiohack} onClose={handleCloseModal} biohackTitle={selectedBiohack || ""} />
+  <BiohackModal isOpen={!!selectedBiohack} onClose={handleCloseModal} biohackId={selectedBiohack?.id ?? null} biohackTitle={selectedBiohack?.title ?? ""} />
     </div>
   )
 }
