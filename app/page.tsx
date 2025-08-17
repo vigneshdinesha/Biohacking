@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { User, Settings } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import BiohackModal from "@/components/biohack-modal"
 import AuthModal from "@/components/auth-modal"
 import IntroSequence from "@/components/intro-sequence"
@@ -60,6 +66,16 @@ function HomeContent() {
 
   const handleCloseModal = () => {
     setSelectedBiohack(null)
+  }
+
+  const handleChangeMotivation = () => {
+    // Clear selected motivation locally and in auth/localStorage, then show selector
+    setSelectedMotivation(null)
+    setMotivationId(null)
+    if (typeof window !== 'undefined') {
+      try { localStorage.removeItem('biohack_motivation_id') } catch {}
+    }
+    setCurrentView("motivation")
   }
 
   // Show auth modal if not signed in (non-closable until sign-in)
@@ -159,12 +175,24 @@ function HomeContent() {
                 <div className="text-xs text-white/70">{user.email}</div>
               </div>
             </div>
-            <button
-              onClick={logout}
-              className="bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg p-2 border border-white/20 transition-colors"
-            >
-              <Settings className="w-5 h-5 text-white" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label="Settings menu"
+                  className="bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg p-2 border border-white/20 transition-colors"
+                >
+                  <Settings className="w-5 h-5 text-white" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleChangeMotivation}>
+                  Change motivation
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout} className="text-red-600 focus:text-red-700">
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : (
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 max-w-xs">
