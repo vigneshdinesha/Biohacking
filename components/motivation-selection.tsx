@@ -185,6 +185,7 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
   const containerRef = useRef(null)
   const headerRef = useRef(null)
   const isHeaderInView = useInView(headerRef, { once: true })
+  const lastCardRef = useRef<HTMLDivElement | null>(null)
 
   const { scrollYProgress } = useScroll({ target: containerRef })
   const backgroundY = useTransform(scrollYProgress, [0, 1], [0, -200])
@@ -230,18 +231,52 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
     }))
   }, [items])
 
+  // Prevent scrolling past the last motivation card
+  useEffect(() => {
+    const container = containerRef.current as HTMLDivElement | null
+    const last = lastCardRef.current
+    if (!container) return
+
+    container.style.overscrollBehavior = 'contain'
+
+    let maxScrollTop = 0
+    const computeMax = () => {
+      const l = lastCardRef.current
+      if (!l) { maxScrollTop = 0; return }
+      // Allow a small cushion below the last card (16px)
+      const cushion = 16
+      const candidate = l.offsetTop + l.offsetHeight - container.clientHeight + cushion
+      maxScrollTop = Math.max(0, candidate)
+    }
+
+    const onScroll = () => {
+      if (container.scrollTop > maxScrollTop) {
+        container.scrollTop = maxScrollTop
+      }
+    }
+
+    computeMax()
+    container.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', computeMax)
+
+    return () => {
+      container.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', computeMax)
+    }
+  }, [decorated.length])
+
   return (
     <div
       ref={containerRef}
-      className="min-h-screen max-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-y-auto"
+      className="min-h-screen max-h-screen relative overflow-y-auto bg-purple-950"
     >
-      {/* Animated Background Elements - Extended to cover scroll area */}
+      {/* Background layer (fixed so it doesn't create extra scroll height) */}
       <motion.div
-        className="absolute inset-0 min-h-full"
+        className="fixed inset-0 pointer-events-none"
         style={{
           y: backgroundY,
-          background: "linear-gradient(to bottom right, rgb(15 23 42), rgb(88 28 135), rgb(15 23 42))",
-          minHeight: "200vh", // Ensure background covers scroll area
+          // Purple-only gradient
+          background: "linear-gradient(135deg, rgb(88 28 135), rgb(124 58 237), rgb(88 28 135))",
         }}
       >
         {/* Floating DNA Particles */}
@@ -344,21 +379,19 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
             {!loading && !error && decorated.length === 0 && (
               <div className="text-center text-white/70 py-10">No motivations found.</div>
             )}
-            {!loading && !error && decorated.map((motivation, index) => (
-              <MotivationCard key={motivation.id} motivation={motivation} index={index} onSelect={handleSelect} />
-            ))}
+            {!loading && !error && decorated.map((motivation, index) => {
+              const isLast = index === decorated.length - 1
+              return (
+                <div key={motivation.id} ref={isLast ? lastCardRef : null}>
+                  <MotivationCard motivation={motivation} index={index} onSelect={handleSelect} />
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* Final bottom spacing - just enough to center last card */}
-        <div className="h-16" />
-      </div>
-
-      {/* Scroll Progress Indicator */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-green-400 origin-left z-50"
-        style={{ scaleX: scrollYProgress }}
-      />
+  {/* No extra bottom spacing so the view ends cleanly at the last card */}
+  </div>
     </div>
   )
 }
