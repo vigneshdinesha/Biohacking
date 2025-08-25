@@ -23,6 +23,7 @@ export default function ProgressModal({ isOpen, onClose, biohackTitle, biohackId
     totalSessions: 0,
     averageRating: 0,
     streak: 0,
+    longestStreak: 0,
   })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -121,20 +122,24 @@ export default function ProgressModal({ isOpen, onClose, biohackTitle, biohackId
           ) : (
             <>
               {/* Stats Overview */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white/10 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-green-400">{biohackProgress.totalSessions}</div>
-              <div className="text-sm text-white/70">Sessions</div>
-            </div>
-            <div className="bg-white/10 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-400">{biohackProgress.averageRating.toFixed(1)}</div>
-              <div className="text-sm text-white/70">Avg Rating</div>
-            </div>
-            <div className="bg-white/10 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-orange-400">{biohackProgress.streak}</div>
-              <div className="text-sm text-white/70">Day Streak</div>
-            </div>
-          </div>
+                  <div className="text-2xl font-bold text-green-400">{biohackProgress.totalSessions}</div>
+                  <div className="text-sm text-white/70">Sessions</div>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-400">{biohackProgress.averageRating.toFixed(1)}</div>
+                  <div className="text-sm text-white/70">Avg Rating</div>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-400">{biohackProgress.streak}</div>
+                  <div className="text-sm text-white/70">Current Streak</div>
+                </div>
+                <div className="bg-white/10 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-400">{biohackProgress.longestStreak}</div>
+                  <div className="text-sm text-white/70">Longest Streak</div>
+                </div>
+              </div>
 
           {/* Toggle between Add Entry and History */}
           <div className="flex space-x-2 mb-6">

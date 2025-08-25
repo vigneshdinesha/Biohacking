@@ -16,6 +16,7 @@ export interface BiohackProgress {
   totalSessions: number
   averageRating: number
   streak: number
+  longestStreak: number
 }
 
 const API_BASE = 'http://localhost:5189/api'
@@ -87,20 +88,65 @@ export class ProgressManager {
     const averageRating =
       entries.length > 0 ? entries.reduce((sum: number, entry: ProgressEntry) => sum + entry.rating, 0) / entries.length : 0
 
-    // Calculate streak (consecutive days with entries)
-    const sortedEntries = entries.sort((a: ProgressEntry, b: ProgressEntry) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    let streak = 0
-    let currentDate = new Date()
+    // Get unique days with entries (multiple entries on same day count as one day)
+    const uniqueDays = [...new Set(entries.map(entry => {
+      const date = new Date(entry.date)
+      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+    }))].sort()
 
-    for (const entry of sortedEntries) {
-      const entryDate = new Date(entry.date)
-      const daysDiff = Math.floor((currentDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      if (daysDiff <= streak + 1) {
-        streak++
-        currentDate = entryDate
+    // Calculate current streak (consecutive days ending today or yesterday)
+    let currentStreak = 0
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
+    
+    // Check if there's an entry today
+    let hasEntryToday = uniqueDays.includes(todayStr)
+    
+    // Start checking from today or yesterday
+    let checkDate = new Date(today)
+    if (!hasEntryToday) {
+      // If no entry today, start from yesterday
+      checkDate.setDate(checkDate.getDate() - 1)
+    }
+    
+    // Count consecutive days backwards
+    while (true) {
+      const checkDateStr = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`
+      if (uniqueDays.includes(checkDateStr)) {
+        currentStreak++
+        checkDate.setDate(checkDate.getDate() - 1)
       } else {
         break
+      }
+    }
+    
+    // Calculate longest streak ever
+    let longestStreak = 0
+    let tempStreak = 0
+    
+    if (uniqueDays.length > 0) {
+      // Convert unique days to Date objects and sort chronologically
+      const sortedDates = uniqueDays.map(dateStr => {
+        const [year, month, day] = dateStr.split('-').map(Number)
+        return new Date(year, month, day)
+      }).sort((a, b) => a.getTime() - b.getTime())
+      
+      tempStreak = 1
+      longestStreak = 1
+      
+      for (let i = 1; i < sortedDates.length; i++) {
+        const prevDate = sortedDates[i - 1]
+        const currentDate = sortedDates[i]
+        const daysDiff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (daysDiff === 1) {
+          // Consecutive day
+          tempStreak++
+          longestStreak = Math.max(longestStreak, tempStreak)
+        } else {
+          // Gap in days, reset temp streak
+          tempStreak = 1
+        }
       }
     }
 
@@ -109,7 +155,8 @@ export class ProgressManager {
       entries,
       totalSessions,
       averageRating,
-      streak,
+      streak: currentStreak,
+      longestStreak,
     }
   }
 
