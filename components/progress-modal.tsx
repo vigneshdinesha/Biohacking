@@ -1,40 +1,90 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, Star, Calendar, BookOpen, TrendingUp } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { ProgressManager, type ProgressEntry } from "@/lib/progress"
+import { ProgressManager, type ProgressEntry, type BiohackProgress } from "@/lib/progress"
 
 interface ProgressModalProps {
   isOpen: boolean
   onClose: () => void
   biohackTitle: string
+  biohackId: number
 }
 
-export default function ProgressModal({ isOpen, onClose, biohackTitle }: ProgressModalProps) {
+export default function ProgressModal({ isOpen, onClose, biohackTitle, biohackId }: ProgressModalProps) {
   const { user } = useAuth()
   const [notes, setNotes] = useState("")
   const [rating, setRating] = useState(5)
   const [showHistory, setShowHistory] = useState(false)
+  const [biohackProgress, setBiohackProgress] = useState<BiohackProgress>({
+    biohackTitle,
+    entries: [],
+    totalSessions: 0,
+    averageRating: 0,
+    streak: 0,
+  })
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!isOpen || !user) return null
-
-  const biohackProgress = ProgressManager.getBiohackProgress(user.id, biohackTitle)
-
-  const handleSaveProgress = () => {
-    const entry: ProgressEntry = {
-      id: Date.now().toString(),
-      biohackTitle,
-      date: new Date().toISOString(),
-      notes,
-      rating,
-      completed: true,
+  // Load progress data when modal opens
+  useEffect(() => {
+    if (!isOpen || !user || !user.dbId || !biohackId) return
+    
+    const loadProgress = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const progress = await ProgressManager.getBiohackProgress(user.dbId!, biohackId, biohackTitle)
+        setBiohackProgress(progress)
+      } catch (err) {
+        console.error('Failed to load progress:', err)
+        setError('Failed to load progress data')
+      } finally {
+        setLoading(false)
+      }
     }
 
-    ProgressManager.saveProgress(user.id, entry)
-    setNotes("")
-    setRating(5)
-    onClose()
+    loadProgress()
+  }, [isOpen, user, biohackId, biohackTitle])
+
+  if (!isOpen || !user || !user.dbId) return null
+
+  const handleSaveProgress = async () => {
+    if (!user.dbId) return
+    
+    setSaving(true)
+    setError(null)
+    
+    try {
+      const entry: Omit<ProgressEntry, 'id'> = {
+        biohackTitle,
+        biohackId,
+        date: new Date().toISOString(),
+        notes,
+        rating,
+        completed: true,
+      }
+
+      await ProgressManager.saveProgress(user.dbId, biohackId, entry)
+      
+      // Reload progress data
+      const updatedProgress = await ProgressManager.getBiohackProgress(user.dbId, biohackId, biohackTitle)
+      setBiohackProgress(updatedProgress)
+      
+      // Reset form
+      setNotes("")
+      setRating(5)
+      
+      // Don't close modal, just switch to history view to show the new entry
+      setShowHistory(true)
+    } catch (err) {
+      console.error('Failed to save progress:', err)
+      setError('Failed to save progress. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -55,9 +105,24 @@ export default function ProgressModal({ isOpen, onClose, biohackTitle }: Progres
             <h2 className="text-2xl font-bold text-white">Track Progress</h2>
           </div>
 
-          {/* Stats Overview */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white/10 rounded-lg p-4 text-center">
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4">
+              <p className="text-red-300 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
+              <p className="text-white/70 mt-2">Loading progress...</p>
+            </div>
+          ) : (
+            <>
+              {/* Stats Overview */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-white/10 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-green-400">{biohackProgress.totalSessions}</div>
               <div className="text-sm text-white/70">Sessions</div>
             </div>
@@ -121,9 +186,17 @@ export default function ProgressModal({ isOpen, onClose, biohackTitle }: Progres
 
               <button
                 onClick={handleSaveProgress}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition-colors"
+                disabled={saving}
+                className="w-full bg-green-500 hover:bg-green-600 disabled:bg-green-500/50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center"
               >
-                Save Progress
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Progress'
+                )}
               </button>
             </div>
           ) : (
@@ -160,6 +233,8 @@ export default function ProgressModal({ isOpen, onClose, biohackTitle }: Progres
                   ))
               )}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

@@ -213,6 +213,7 @@ export default function BiohackModal({ isOpen, onClose, biohackId, biohackTitle 
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
         biohackTitle={biohackTitle}
+        biohackId={biohackId || 0}
       />
     </>
   )

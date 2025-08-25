@@ -3,6 +3,7 @@
 export interface ProgressEntry {
   id: string
   biohackTitle: string
+  biohackId: number
   date: string
   notes: string
   rating: number // 1-5 stars
@@ -17,33 +18,77 @@ export interface BiohackProgress {
   streak: number
 }
 
+const API_BASE = 'http://localhost:5189/api'
+
 export class ProgressManager {
-  private static getStorageKey(userId: string) {
-    return `biohack_progress_${userId}`
+  static async saveProgress(userId: number, biohackId: number, entry: Omit<ProgressEntry, 'id'>): Promise<ProgressEntry> {
+    const journalData = {
+      userId: userId,
+      biohackId: biohackId,
+      notes: entry.notes,
+      rating: entry.rating,
+      dateTime: entry.date
+    }
+
+    const response = await fetch(`${API_BASE}/Journals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(journalData),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to save progress: ${response.statusText}`)
+    }
+
+    const savedJournal = await response.json()
+    
+    // Convert API response back to ProgressEntry format
+    return {
+      id: savedJournal.id.toString(),
+      biohackTitle: entry.biohackTitle,
+      biohackId: biohackId,
+      date: savedJournal.dateTime || entry.date,
+      notes: savedJournal.notes,
+      rating: savedJournal.rating,
+      completed: true
+    }
   }
 
-  static saveProgress(userId: string, entry: ProgressEntry) {
-    const key = this.getStorageKey(userId)
-    const existing = JSON.parse(localStorage.getItem(key) || "[]")
-    existing.push(entry)
-    localStorage.setItem(key, JSON.stringify(existing))
+  static async getProgress(userId: number, biohackId: number): Promise<ProgressEntry[]> {
+    const response = await fetch(`${API_BASE}/Journals/user/${userId}/biohack/${biohackId}`)
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [] // No entries found
+      }
+      throw new Error(`Failed to fetch progress: ${response.statusText}`)
+    }
+
+    const journals = await response.json()
+    
+    // Convert API response to ProgressEntry format
+    return journals.map((journal: any) => ({
+      id: journal.id.toString(),
+      biohackTitle: journal.biohackName || '', // Assuming API returns biohack name
+      biohackId: journal.biohackId,
+      date: journal.dateTime,
+      notes: journal.notes,
+      rating: journal.rating,
+      completed: true
+    }))
   }
 
-  static getProgress(userId: string): ProgressEntry[] {
-    const key = this.getStorageKey(userId)
-    return JSON.parse(localStorage.getItem(key) || "[]")
-  }
-
-  static getBiohackProgress(userId: string, biohackTitle: string): BiohackProgress {
-    const allProgress = this.getProgress(userId)
-    const entries = allProgress.filter((entry) => entry.biohackTitle === biohackTitle)
+  static async getBiohackProgress(userId: number, biohackId: number, biohackTitle: string): Promise<BiohackProgress> {
+    const entries = await this.getProgress(userId, biohackId)
 
     const totalSessions = entries.length
     const averageRating =
-      entries.length > 0 ? entries.reduce((sum, entry) => sum + entry.rating, 0) / entries.length : 0
+      entries.length > 0 ? entries.reduce((sum: number, entry: ProgressEntry) => sum + entry.rating, 0) / entries.length : 0
 
     // Calculate streak (consecutive days with entries)
-    const sortedEntries = entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const sortedEntries = entries.sort((a: ProgressEntry, b: ProgressEntry) => new Date(b.date).getTime() - new Date(a.date).getTime())
     let streak = 0
     let currentDate = new Date()
 
@@ -68,10 +113,11 @@ export class ProgressManager {
     }
   }
 
-  static getAllBiohackProgress(userId: string): BiohackProgress[] {
-    const allProgress = this.getProgress(userId)
-    const biohackTitles = [...new Set(allProgress.map((entry) => entry.biohackTitle))]
-
-    return biohackTitles.map((title) => this.getBiohackProgress(userId, title))
+  // Note: This method is deprecated since we now need biohackId for API calls
+  static async getAllBiohackProgress(userId: number): Promise<BiohackProgress[]> {
+    // This would require a new API endpoint to get all journal entries for a user
+    // For now, we'll return an empty array
+    console.warn('getAllBiohackProgress is not implemented with the new API structure')
+    return []
   }
 }
