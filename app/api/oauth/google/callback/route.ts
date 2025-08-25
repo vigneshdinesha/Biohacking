@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify, createRemoteJWKSet, SignJWT } from 'jose'
+import { createUser, findUserByEmail } from '@/lib/admin'
 
 const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'))
 
@@ -66,8 +67,51 @@ export async function GET(request: Request) {
     picture: String(payload.picture || ''),
   }
 
-  // Create our session JWT
-  const sessionJwt = await new SignJWT({ user })
+  // Check if user already exists in database
+  let dbUser: any = null
+  let dbUserId: number | null = null
+  let userMotivationId: number | null = null
+  
+  try {
+    // First, check if user already exists
+    dbUser = await findUserByEmail(user.email)
+    
+    if (dbUser) {
+      // User exists, use their data
+      dbUserId = dbUser.id
+      userMotivationId = dbUser.motivationId
+      console.log('Existing user found:', { id: dbUserId, email: user.email, motivationId: userMotivationId })
+    } else {
+      // User doesn't exist, create new user
+      const nameParts = user.name.split(' ')
+      const firstname = nameParts[0] || ''
+      const lastname = nameParts.slice(1).join(' ') || ''
+      
+      const userPayload = {
+        firstName: firstname,
+        lastName: lastname,
+        email: user.email,
+        provider: 'google',
+        externalId: user.id,
+        subId: user.id,
+        motivationId: null
+      }
+
+      // Use your actual API via the admin function
+      const createdUser = await createUser(userPayload)
+      dbUserId = createdUser.id
+      userMotivationId = createdUser.motivationId
+      console.log('New user created in database:', { id: dbUserId, email: user.email })
+    }
+  } catch (error) {
+    console.error('Error handling user record:', error)
+    // Continue with authentication even if user handling fails
+  }
+
+  // Create our session JWT with database user ID and motivation ID
+  const sessionJwt = await new SignJWT({ 
+    user: { ...user, dbId: dbUserId, motivationId: userMotivationId }
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('30d')

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { motion, useScroll, useTransform, useInView, useVelocity, useSpring } from "framer-motion"
 import { SkipForward } from "lucide-react"
 
@@ -37,6 +37,19 @@ function DNAHelix({ scrollY, index }: { scrollY: any; index: number }) {
   const helixY = useTransform(scrollY, [0, 1], [0, -2000 - index * 500])
   const helixRotation = useTransform(scrollY, [0, 1], [0, 720 + index * 180])
   const helixOpacity = useTransform(scrollY, [0, 0.2, 0.8, 1], [0, 1, 1, 0])
+
+  // Pre-calculate base pair positions to avoid hydration mismatches
+  const basePairs = useMemo(() => {
+    return Array.from({ length: 20 }, (_, i) => {
+      const sinValue = Math.sin(i * 0.314)
+      return {
+        x1: 200 + sinValue * 100,
+        x2: 400 - sinValue * 100,
+        y: i * 100,
+        hue: 160 + index * 20 + i * 5
+      }
+    })
+  }, [index])
 
   return (
     <motion.div
@@ -91,14 +104,14 @@ function DNAHelix({ scrollY, index }: { scrollY: any; index: number }) {
           />
 
           {/* Connecting base pairs */}
-          {[...Array(20)].map((_, i) => (
+          {basePairs.map((pair, i) => (
             <motion.line
               key={i}
-              x1={200 + Math.sin(i * 0.314) * 100}
-              y1={i * 100}
-              x2={400 - Math.sin(i * 0.314) * 100}
-              y2={i * 100}
-              stroke={`hsl(${160 + index * 20 + i * 5}, 70%, 70%)`}
+              x1={pair.x1}
+              y1={pair.y}
+              x2={pair.x2}
+              y2={pair.y}
+              stroke={`hsl(${pair.hue}, 70%, 70%)`}
               strokeWidth="2"
               opacity="0.6"
               filter={`url(#helixGlow${index})`}
@@ -212,6 +225,18 @@ export default function IntroSequence({ onComplete }: IntroSequenceProps) {
   const [showContinue, setShowContinue] = useState(false)
   const [showSkip, setShowSkip] = useState(false)
   const velocityParticles = useRef(null)
+
+  // Pre-calculate DNA icon lines to avoid hydration mismatches
+  const dnaIconLines = useMemo(() => {
+    return Array.from({ length: 8 }, (_, i) => {
+      const sinValue = Math.sin(i * 0.785)
+      return {
+        x1: 20 + sinValue * 20,
+        x2: 60 - sinValue * 20,
+        y: 10 + i * 10
+      }
+    })
+  }, [])
 
   // Show skip button after 3 seconds
   useEffect(() => {
@@ -341,13 +366,13 @@ export default function IntroSequence({ onComplete }: IntroSequenceProps) {
                   strokeWidth="3"
                   fill="none"
                 />
-                {[...Array(8)].map((_, i) => (
+                {dnaIconLines.map((line, i) => (
                   <line
                     key={i}
-                    x1={20 + Math.sin(i * 0.785) * 20}
-                    y1={10 + i * 10}
-                    x2={60 - Math.sin(i * 0.785) * 20}
-                    y2={10 + i * 10}
+                    x1={line.x1}
+                    y1={line.y}
+                    x2={line.x2}
+                    y2={line.y}
                     stroke="rgba(255, 255, 255, 0.6)"
                     strokeWidth="1"
                   />

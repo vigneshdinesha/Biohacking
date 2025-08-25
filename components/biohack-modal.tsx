@@ -5,7 +5,7 @@ import { X, Target, Brain, Clock } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import AuthModal from "./auth-modal"
 import ProgressModal from "./progress-modal"
-import ReminderModal from "./reminder-modal"
+
 import { getBiohack } from "@/lib/admin"
 
 interface BiohackModalProps {
@@ -19,7 +19,6 @@ export default function BiohackModal({ isOpen, onClose, biohackId, biohackTitle 
   const { user } = useAuth()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showProgressModal, setShowProgressModal] = useState(false)
-  const [showReminderModal, setShowReminderModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [biohack, setBiohack] = useState<any | null>(null)
@@ -53,14 +52,6 @@ export default function BiohackModal({ isOpen, onClose, biohackId, biohackTitle 
       return
     }
     setShowProgressModal(true)
-  }
-
-  const handleSetReminder = () => {
-    if (!user) {
-      setShowAuthModal(true)
-      return
-    }
-    setShowReminderModal(true)
   }
 
   // Parse research studies which may be a JSON string or array
@@ -201,13 +192,7 @@ export default function BiohackModal({ isOpen, onClose, biohackId, biohackTitle 
                 <p className="text-white/80 mb-4 text-sm">
                   Consistency is key. Start with just 5 minutes today and build up gradually.
                 </p>
-                <div className="flex justify-center space-x-4">
-                  <button
-                    onClick={handleSetReminder}
-                    className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full font-semibold transition-colors text-sm"
-                  >
-                    Set Reminder
-                  </button>
+                <div className="flex justify-center">
                   <button
                     onClick={handleTrackProgress}
                     className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-full font-semibold transition-colors text-sm"
@@ -227,11 +212,6 @@ export default function BiohackModal({ isOpen, onClose, biohackId, biohackTitle 
       <ProgressModal
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
-        biohackTitle={biohackTitle}
-      />
-      <ReminderModal
-        isOpen={showReminderModal}
-        onClose={() => setShowReminderModal(false)}
         biohackTitle={biohackTitle}
       />
     </>

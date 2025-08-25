@@ -53,10 +53,10 @@ function HomeContent() {
     setCurrentView("motivation")
   }
 
-  const handleMotivationSelect = (motivation: { id: number; title: string }) => {
+  const handleMotivationSelect = async (motivation: { id: number; title: string }) => {
     setSelectedMotivation(motivation)
-  // persist in auth/local state
-  setMotivationId(motivation.id)
+    // persist in auth/local state and database
+    await setMotivationId(motivation.id)
     setCurrentView("main")
   }
 
@@ -68,10 +68,10 @@ function HomeContent() {
     setSelectedBiohack(null)
   }
 
-  const handleChangeMotivation = () => {
+  const handleChangeMotivation = async () => {
     // Clear selected motivation locally and in auth/localStorage, then show selector
     setSelectedMotivation(null)
-    setMotivationId(null)
+    await setMotivationId(null)
     if (typeof window !== 'undefined') {
       try { localStorage.removeItem('biohack_motivation_id') } catch {}
     }
@@ -169,7 +169,15 @@ function HomeContent() {
         {user ? (
           <div className="flex items-center space-x-4">
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20 flex items-center space-x-3">
-              <img src={user.picture || "/placeholder.svg"} alt={user.name} className="w-8 h-8 rounded-full" />
+              <img 
+                src={user.picture || "/placeholder.svg"} 
+                alt={user.name} 
+                className="w-8 h-8 rounded-full"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "/placeholder.svg";
+                }}
+              />
               <div className="text-white">
                 <div className="text-sm font-medium">{user.name}</div>
                 <div className="text-xs text-white/70">{user.email}</div>

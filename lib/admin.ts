@@ -12,24 +12,67 @@ export async function getUser(id: number): Promise<any> {
   return res.json();
 }
 
-export async function createUser(data: any): Promise<any> {
-  const res = await fetch(`${API_BASE}/Users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to create user');
-  return res.json();
+export async function findUserByEmail(email: string): Promise<any | null> {
+  try {
+    const users = await getUsers();
+    const user = users.find((u: any) => u.email === email);
+    return user || null;
+  } catch (error) {
+    console.error('Error finding user by email:', error);
+    return null;
+  }
 }
 
-export async function updateUser(id: number, data: any): Promise<any> {
-  const res = await fetch(`${API_BASE}/Users/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update user');
-  return res.json();
+export async function createUser(userData: any) {
+  try {
+    console.log('Sending user data to API:', userData);
+    const response = await fetch('http://localhost:5189/api/Users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Create user error response:', errorText);
+      throw new Error(`Failed to create user: ${response.statusText}`);
+    }
+    
+    const newUser = await response.json();
+    console.log('Created user:', newUser);
+    return newUser;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
+}
+
+export async function updateUser(userId: number, updates: any) {
+  try {
+    console.log(`Updating user ${userId} with:`, updates);
+    const response = await fetch(`http://localhost:5189/api/Users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Update user error response:', errorText);
+      throw new Error(`Failed to update user: ${response.statusText}`);
+    }
+    
+    const updatedUser = await response.json();
+    console.log('Updated user:', updatedUser);
+    return updatedUser;
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
+  }
 }
 
 export async function deleteUser(id: number): Promise<any> {

@@ -92,8 +92,9 @@ const config: Config = {
   			'accordion-up': 'accordion-up 0.2s ease-out'
   		},
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "Arial", "Helvetica", "sans-serif"],
+        sans: ["var(--font-inter)", "var(--font-geist-sans)", "Arial", "Helvetica", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
+        orbitron: ["var(--font-orbitron)", "sans-serif"],
       },
   	}
   },

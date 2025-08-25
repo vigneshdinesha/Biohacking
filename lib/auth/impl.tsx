@@ -2,10 +2,12 @@
 
 import type React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { updateUser } from '@/lib/admin'
 
 // Public user shape (extend here when backend adds real auth fields)
 export interface User {
-	id: string
+	id: string // This is the external/Google ID
+	dbId?: number // This is the database user ID
 	email: string
 	name: string
 	picture: string
@@ -22,7 +24,7 @@ interface AuthContextType {
 	login: () => Promise<void>
 	logout: () => void
 	loading: boolean
-	setMotivationId: (id: number | null) => void
+	setMotivationId: (id: number | null) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -34,15 +36,15 @@ export function useAuth() {
 }
 
 function InnerAuthProvider({ children }: { children: React.ReactNode }) {
-	const [sessionUser, setSessionUser] = useState<{ id: string; email: string; name: string; image?: string } | null>(null)
+	const [sessionUser, setSessionUser] = useState<{ id: string; email: string; name: string; picture?: string; dbId?: number } | null>(null)
 	const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
-	const [motivationId, setMotivationId] = useState<number | null>(null)
+	const [motivationId, setMotivationIdState] = useState<number | null>(null)
 
 	// hydrate motivation from localStorage
 	useEffect(() => {
 		if (typeof window === 'undefined') return
 		const v = localStorage.getItem('biohack_motivation_id')
-		if (v) setMotivationId(Number(v))
+		if (v) setMotivationIdState(Number(v))
 	}, [])
 
 	// fetch session user from cookie via API
@@ -55,7 +57,17 @@ function InnerAuthProvider({ children }: { children: React.ReactNode }) {
 				const data = await res.json()
 				if (!alive) return
 				if (data?.user) {
-					setSessionUser({ id: data.user.id, email: data.user.email, name: data.user.name, image: data.user.picture })
+					setSessionUser({ 
+						id: data.user.id, 
+						email: data.user.email, 
+						name: data.user.name, 
+						picture: data.user.picture,
+						dbId: data.user.dbId 
+					})
+					// Set motivation ID from JWT if available
+					if (data.user.motivationId) {
+						setMotivationIdState(data.user.motivationId)
+					}
 					setStatus('authenticated')
 				} else {
 					setSessionUser(null)
@@ -74,12 +86,29 @@ function InnerAuthProvider({ children }: { children: React.ReactNode }) {
 		if (!sessionUser) return null
 		return {
 			id: sessionUser.id,
+			dbId: sessionUser.dbId,
 			email: sessionUser.email || '',
 			name: sessionUser.name || '',
-			picture: sessionUser.image || '/placeholder.svg?height=40&width=40',
+			picture: sessionUser.picture || '/placeholder.svg?height=40&width=40',
 			motivationId,
 		}
 	}, [sessionUser, motivationId])
+
+	const setMotivationId = async (id: number | null) => {
+		setMotivationIdState(id)
+		
+		// Update database if user has a dbId using actual API
+		if (user?.dbId && id !== null) {
+			try {
+				await updateUser(user.dbId, {
+					motivationId: id
+				})
+				console.log('Updated user motivation in database:', { userId: user.dbId, motivationId: id })
+			} catch (error) {
+				console.error('Failed to update user motivation in database:', error)
+			}
+		}
+	}
 
 	const login = async () => {
 		window.location.assign('/api/oauth/google/start')

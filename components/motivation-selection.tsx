@@ -64,7 +64,15 @@ function MotivationCard({
           animate={{ scale: isHovered ? 1.1 : 1 }}
           transition={{ duration: 0.6 }}
         >
-          <img src={motivation.image || "/placeholder.svg"} alt="" className="w-full h-full object-cover rounded-3xl" />
+          <img 
+            src={motivation.image || "/placeholder.svg"} 
+            alt="" 
+            className="w-full h-full object-cover rounded-3xl"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder.svg";
+            }}
+          />
         </motion.div>
 
         {/* Gradient Overlay */}
@@ -115,7 +123,7 @@ function MotivationCard({
 
           {/* Title */}
           <motion.h3
-            className="text-2xl font-bold text-white mb-4 text-center leading-tight"
+            className="text-2xl font-bold text-white mb-4 text-center leading-tight font-orbitron tracking-wide"
             animate={{ color: isHovered ? "#06b6d4" : "#ffffff" }}
           >
             {motivation.title}
@@ -136,7 +144,7 @@ function MotivationCard({
             animate={{ opacity: isHovered ? 1 : 0 }}
             transition={{ duration: 0.3 }}
           >
-            <span className="font-medium">Choose this path</span>
+            <span className="font-medium font-orbitron tracking-wide">Choose this path</span>
             <ArrowRight className="w-5 h-5" />
           </motion.div>
         </div>
@@ -268,15 +276,18 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
   return (
     <div
       ref={containerRef}
-      className="min-h-screen max-h-screen relative overflow-y-auto bg-purple-950"
+      className="min-h-screen max-h-screen relative overflow-y-auto"
+      style={{
+        background: "linear-gradient(135deg, rgb(124 58 237), rgb(147 51 234), rgb(124 58 237))",
+      }}
     >
       {/* Background layer (fixed so it doesn't create extra scroll height) */}
       <motion.div
         className="fixed inset-0 pointer-events-none"
         style={{
           y: backgroundY,
-          // Purple-only gradient
-          background: "linear-gradient(135deg, rgb(88 28 135), rgb(124 58 237), rgb(88 28 135))",
+          // Consistent lighter purple gradient across entire screen
+          background: "linear-gradient(135deg, rgb(124 58 237), rgb(147 51 234), rgb(124 58 237))",
         }}
       >
         {/* Floating DNA Particles */}
@@ -335,7 +346,7 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
           transition={{ duration: 1 }}
         >
           <motion.h1
-            className="text-5xl md:text-6xl font-bold text-white mb-6"
+            className="text-5xl md:text-6xl font-bold text-white mb-6 font-orbitron tracking-wide"
             animate={{
               backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
             }}
@@ -344,7 +355,7 @@ export default function MotivationSelection({ onSelect }: MotivationSelectionPro
             What excites you?
           </motion.h1>
           <motion.p
-            className="text-xl text-white/80 max-w-2xl mx-auto px-4"
+            className="text-xl text-white/90 max-w-2xl mx-auto px-4 font-medium tracking-wide"
             initial={{ opacity: 0 }}
             animate={isHeaderInView ? { opacity: 1 } : {}}
             transition={{ delay: 0.5, duration: 1 }}
